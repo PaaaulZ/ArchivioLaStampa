@@ -1,0 +1,20 @@
+{
+
+  "manifest_version": 2,
+  "name": "Archivio La Stampa",
+  "version": "1.0",
+
+  "description": "Allows use of www.archiviolastampa.it without having Flash Player",
+
+  "icons": {
+    "48": "icons/48.png"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["*://*.archiviolastampa.it/*"],
+      "js": ["als.js"]
+    }
+  ]
+
+}
