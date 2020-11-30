@@ -4,6 +4,14 @@
 
 if (document.URL.includes('action,viewer'))
 {
+
+    if (document.URL.includes('anews,true/'))
+    {
+        // That "anews,true/" in the URL changes the page in someway, I don't really care how. I can just remove it and refresh the page.
+        var newUrl = document.URL.replace('anews,true/','');
+        window.history.pushState("???", "???", newUrl);
+    }
+
     // We are currently in a page that should show the Flash Player viewer!
 
     // article_id => current page we are looking at. 
@@ -32,11 +40,19 @@ function newElement(url, article_id)
 
     // Append current article id in the page for later use.
     
-    var current_article_dom = document.createElement('input');
-    current_article_dom.type = 'hidden';
-    current_article_dom.id = 'current_article';
-    current_article_dom.value = article_id;
-    document.body.appendChild(current_article_dom);
+    var currentArticleDOM = document.createElement('input');
+    currentArticleDOM.type = 'hidden';
+    currentArticleDOM.id = 'current_article';
+    currentArticleDOM.value = article_id;
+    document.body.appendChild(currentArticleDOM);
+
+    // Append current s_field in the page for later use.
+
+    var sFieldDom = document.createElement('input');
+    sFieldDom.type = 'hidden';
+    sFieldDom.id = 's_field';
+    sFieldDom.value = s_field;
+    document.body.appendChild(sFieldDom);
 
     // Create a new div to host the newspaper page.
 
@@ -44,21 +60,43 @@ function newElement(url, article_id)
     newDiv.id = 'customDiv';
     newDiv.style.textAlign = 'center';
 
+
     // Create and append the newspaper page to the new div and remove the old Flash Player viewer object
     
     var newImage = document.createElement('img');
     newImage.src = url;
     newImage.id = 'newsPage';
-    newDiv.appendChild(newImage);
+    newImage.style.visibility = 'hidden';
+
+    // Create a canvas to host binding boxes and the newspaper page
+
+    var boxCanvas = document.createElement('canvas');
+    boxCanvas.id = 'boxCanvas';
+    boxCanvas.width = newImage.width;
+    boxCanvas.height = newImage.height;
+    newDiv.appendChild(boxCanvas);
+
+    newImage.addEventListener('load', (event) => 
+    {
+            // Draw the current newspaper page in the canvas
+            var ctx = boxCanvas.getContext("2d");
+            ctx.drawImage(newImage, 0, 0);
+    });
+
+    console.debug("Canvas created and image loaded");
     
     console.debug("Created new DOM");
     
+    // Preparing to remove old Flash Player stuff from the page
+
     var currentDOM = document.getElementById('main_content'); 
     currentDOM.appendChild(newDiv);
     var viewer = document.getElementById('viewer');
     viewer.remove();
     
     console.debug("Removed old flash player DOM");
+
+    // Preparing "controls" div
 
     // Prepare the URL for previous and next page to "draw" the controls
     
@@ -81,10 +119,12 @@ function newElement(url, article_id)
     var currentDOM = document.getElementById('main_content_wrapper'); 
     mainContainer.insertBefore(controlsDiv, currentDOM);
 
-    // HACK: Footer and Facebook/Twitter buttons are in the way, I'll remove them for now.
+    // Footer and Facebook/Twitter buttons are in the way, I'll just remove them for now and figure it out later.
 
     document.getElementById('footer').remove();
     document.getElementById('i_like_lastampa').remove();
+
+    findBindingBoxes(article_id, s_field);
 
 }
 
@@ -114,16 +154,35 @@ function changeImage(newArticleID, s_field)
     console.debug(newArticleID);
     console.debug(s_field);
 
-    var pageImage = document.getElementById('newsPage');
+    // Put the image in a img field but hide it, we want the image in a canvas and not in the middle of the page like before.
+
     var url = "http://www.archiviolastampa.it/load.php?url=/downloadContent.do?id=" + newArticleID +"&s=" + s_field;
+    var pageImage = document.createElement('img');
     pageImage.src = url;
+    pageImage.id = 'newsPage';
+    pageImage.style.visibility = 'hidden';
+
+    pageImage.addEventListener('load', (event) => 
+    {
+        // Add the new image to the canvas
+        var boxCanvas = document.getElementById('boxCanvas');
+        var ctx = boxCanvas.getContext("2d");
+        ctx.drawImage(pageImage, 0, 0);
+    });
+    
+    pageImage.src = url;
+
+    // Update current article id so we don't get stuck on the same page over and over again
 
     var current_article_dom = document.getElementById('current_article');
     current_article_dom.value = newArticleID;
 
+    // Update controls so we don't get stuck on the same page over and over again
+
     updateControls();
 
     console.debug("Changed page");
+
 }
 
 function nextPageURL(article_id)
@@ -212,3 +271,105 @@ function notifyExtension(e)
     return;
 
 }
+
+function findBindingBoxes(current_article, s_field)
+{
+    // Calls the "bounding box" API to obtain the bounding boxes position
+    var articleIdNoMetadataId = stripMetadataId(current_article);
+    var url = "http://www.archiviolastampa.it/load.php?url=/search/select/?wt=json&q=pageID:" + articleIdNoMetadataId + "&s=" + s_field;
+    // Actual call! The function metadataCallback() will be called after this.
+    getJSON(url, metadataCallback);
+}
+
+function stripMetadataId(full_article_id)
+{
+    // Removes (if present) the last part of the article id.
+    // The last part represents the metadata id, we need it empty to get the metadata list.
+    var idSplit = full_article_id.split("_");
+    if (idSplit.length > 5)
+    {
+        idSplit = idSplit.slice(0,5);
+    }
+
+    return idSplit.join("_");
+}
+
+function metadataCallback(status, response)
+{
+    // This function will be called after the call to the "Metadata" API
+    if (status != 200)
+    {
+        // Something went wrong.
+        // If error 501 maybe s_field is wrong or empty.
+        alert("Error getting metadata!");
+        console.error("Error getting metadata (" + status + ")");
+    }
+    else
+    {
+        var docs = response.response.docs;
+        for (var i = 0; i < docs.length; i++)
+        {
+            // For every metadata that you found
+            var currentDoc = docs[i];
+            var currentArticleId = document.getElementById('current_article').value;
+            var currentArticleIdNoMetadataId = stripMetadataId(currentArticleId);
+
+            if (currentDoc.pageID == currentArticleIdNoMetadataId)
+            {
+                // If this metadata is for the page that I'm currently showing
+                var metadataId = currentDoc.id;
+                // Append the metadata id to the article id
+                var currentArticleIdForBindingBoxes = currentArticleIdNoMetadataId + "_" + metadataId;
+                // The hidden input field "s_field" is a bit redundant, we could use the native field "t" but for now it's ok.
+                var s_field = document.getElementById('s_field').value;
+                var url = "http://www.archiviolastampa.it/load.php?url=/item/getmetadata.do?articleid=" + currentArticleIdForBindingBoxes +"&query=&s=" + s_field;
+                // Call the "Bounding Boxes" API and call the function boundingBoxCallback() after that
+                getJSON(url, boundingBoxCallback)
+            }
+        }
+    }
+}
+
+
+function boundingBoxCallback(status, response)
+{
+    if (status != 200)
+    {
+        // Something went wrong.
+        // If error 501 maybe s_field is wrong or empty.
+        alert("Error getting binding box data!");
+        console.error("Error getting binding box data (" + status + ")");
+    }
+    else
+    {
+        // Get the rectangles for this page.
+        var areaList = response.arealist;
+        // Get the current canvas
+        var canvas = document.getElementById('boxCanvas');
+        var ctx = canvas.getContext("2d");
+        for (var i = 0; i < areaList.length; i++)
+        {
+            // For every rectangle get the coordinates and draw them onto the image (newspaper page) outlined in red
+            var currentArea = areaList[i];
+            var rectData = [parseInt(currentArea.hpos), parseInt(currentArea.vpos), parseInt(currentArea.width), parseInt(currentArea.height)]
+            ctx.beginPath();
+            ctx.strokeStyle = "#FF0000";
+            ctx.strokeRect(rectData[0], rectData[1], rectData[2], rectData[3]);
+            ctx.stroke();
+        }
+    }
+}
+
+function getJSON(url, callback)
+{
+    // https://stackoverflow.com/questions/12460378/how-to-get-json-from-url-in-javascript/12460434
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.responseType = 'json';
+    xhr.onload = function() 
+    {
+        var status = xhr.status;
+        callback(status, xhr.response);
+    };
+    xhr.send();
+};
