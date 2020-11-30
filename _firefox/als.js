@@ -59,52 +59,59 @@ function newElement(url, article_id)
     var newDiv = document.createElement('div');
     newDiv.id = 'customDiv';
     newDiv.style.textAlign = 'center';
-
-
+         
     // Create and append the newspaper page to the new div and remove the old Flash Player viewer object
     
     var newImage = document.createElement('img');
     newImage.src = url;
     newImage.id = 'newsPage';
     newImage.style.visibility = 'hidden';
-
+    
     // Create a canvas to host binding boxes and the newspaper page
-
+    
     var boxCanvas = document.createElement('canvas');
     boxCanvas.id = 'boxCanvas';
     boxCanvas.width = newImage.width;
     boxCanvas.height = newImage.height;
+    boxCanvas.style.background = "url('" + url + "')";
     newDiv.appendChild(boxCanvas);
-
-    newImage.addEventListener('load', (event) => 
-    {
-            // Draw the current newspaper page in the canvas
-            var ctx = boxCanvas.getContext("2d");
-            ctx.drawImage(newImage, 0, 0);
-    });
-
+    
     console.debug("Canvas created and image loaded");
     
+
     console.debug("Created new DOM");
     
-    // Preparing to remove old Flash Player stuff from the page
-
     var currentDOM = document.getElementById('main_content'); 
     currentDOM.appendChild(newDiv);
+
+    // Preparing to remove old Flash Player stuff from the page
+
     var viewer = document.getElementById('viewer');
-    viewer.remove();
+    if (viewer !== null)
+    {
+        // Try to remove the old viewer only if it exists (you have Flash Player enabled)
+        viewer.remove();
+        console.debug("Removed old flash player DOM");
+    }
+
+    // TODO: Remove the "missing Flash Player" banner without breaking everything
+
+    // var contenutoDivAttuale = document.getElementById('main_content').innerHTML;
+    // if (contenutoDivAttuale.includes('Supporto Flash non rilevato.'))
+    // {
+    //         document.getElementById('main_content').innerHTML = contenutoDivAttuale.replace('Supporto Flash non rilevato. Questa applicazione richiede il plugin Adobe Flash Player. <a href="http://www.adobe.com/go/getflash/">Get Flash</a>','');;
+    // }
     
-    console.debug("Removed old flash player DOM");
-
+    
     // Preparing "controls" div
-
+    
     // Prepare the URL for previous and next page to "draw" the controls
     
     previousPageID = previousPageURL(article_id);
     nextPageID = nextPageURL(article_id);
-
+    
     // Create a new div to host the controls (previous page, next page, download pdf, download ocr) and add them to the page just on top of the newspaper's page
-
+    
     var controlsDiv = document.createElement('div');
     controlsDiv.id = 'controls';
     controlsDiv.style.textAlign = 'center';
@@ -114,36 +121,42 @@ function newElement(url, article_id)
     controlsDiv.innerHTML = "<a id = 'backButton' href = 'javascript:void(0);' data-newarticleid = '" + previousPageID + "' data-sfield = '" + s_field + "'>PREVIOUS PAGE</a> - <a id = 'forwardButton' href = 'javascript:void(0);' data-newarticleid = '" + nextPageID + "' data-sfield = '" + s_field + "'>NEXT PAGE</a> - <a id = 'downloadPdfButton' href = 'javascript:void(0);' data-sfield = '" + s_field + "'>PDF</a> - <a id = 'downloadOcrButton' href = 'javascript:void(0);' data-sfield = '" + s_field + "'>OCR</a><br/><br/><br/><br/><br/>";
     // HACK: Don't worry, this is temporary. Just to see if the extension is working and where the controls are.
     controlsDiv.style.background = 'yellow';
-
+    
     var mainContainer = document.getElementById('maincontainer');
     var currentDOM = document.getElementById('main_content_wrapper'); 
     mainContainer.insertBefore(controlsDiv, currentDOM);
-
+    
     // Footer and Facebook/Twitter buttons are in the way, I'll just remove them for now and figure it out later.
-
+    
     document.getElementById('footer').remove();
     document.getElementById('i_like_lastampa').remove();
-
-    findBindingBoxes(article_id, s_field);
-
+    
+    findBindingBoxes(article_id, s_field);  
+        
 }
-
+    
 function updateControls()
 {
-
+        
     // Updates the controls after changing page.
-
+    
     currentArticleID = document.getElementById('current_article').value;
- 
+    
     previousPageID = previousPageURL(currentArticleID);
     nextPageID = nextPageURL(currentArticleID);
-
+    
     var backButton = document.getElementById('backButton');
     var forwardButton = document.getElementById('forwardButton');
     backButton.dataset.newarticleid = previousPageID;
     forwardButton.dataset.newarticleid = nextPageID;
 
     console.debug("Updated controls");
+}
+
+function clearCanvas(canvas)
+{
+    var ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
 function changeImage(newArticleID, s_field)
@@ -168,6 +181,8 @@ function changeImage(newArticleID, s_field)
         var boxCanvas = document.getElementById('boxCanvas');
         var ctx = boxCanvas.getContext("2d");
         ctx.drawImage(pageImage, 0, 0);
+        findBindingBoxes(newArticleID, s_field);
+        console.debug("Updated image and bounding boxes");
     });
     
     pageImage.src = url;
@@ -351,12 +366,13 @@ function boundingBoxCallback(status, response)
         {
             // For every rectangle get the coordinates and draw them onto the image (newspaper page) outlined in red
             var currentArea = areaList[i];
-            var rectData = [parseInt(currentArea.hpos), parseInt(currentArea.vpos), parseInt(currentArea.width), parseInt(currentArea.height)]
+            // var rectData = [parseInt(currentArea.hpos), parseInt(currentArea.vpos), parseInt(currentArea.width), parseInt(currentArea.height)]
             ctx.beginPath();
             ctx.strokeStyle = "#FF0000";
-            ctx.strokeRect(rectData[0], rectData[1], rectData[2], rectData[3]);
+            ctx.strokeRect(currentArea.hpos, currentArea.vpos, currentArea.width, currentArea.height);
             ctx.stroke();
         }
+        // detectHoverOnRectangle(areaList);
     }
 }
 
@@ -372,4 +388,41 @@ function getJSON(url, callback)
         callback(status, xhr.response);
     };
     xhr.send();
-};
+}
+
+// TODO: Detect hover on rectangles and show OCR
+
+
+// function detectHoverOnRectangle(rectangles)
+// {
+
+//     // https://stackoverflow.com/questions/29300280/update-html5-canvas-rectangle-on-hover
+    
+//     var canvas = document.getElementById('boxCanvas');
+//     context = canvas.getContext("2d");
+
+//     canvas.onmousemove = function(e) 
+//     {
+
+
+//         for (var i = 0; i < rectangles.length; i++)
+//         {
+//             var rect = canvas.getBoundingClientRect();
+//             var x = e.clientX - rect.left;
+//             var y = e.clientY - rect.top;;
+
+//             console.debug([e.clientX, e.clientY]);
+    
+//             currentRect = rectangles[i];
+//             context.beginPath();
+//             context.rect(currentRect.hpos, currentRect.vpos, currentRect.width, currentRect.height);
+//             context.fillStyle = context.isPointInPath(x, y) ? "blue":"yellow";
+//             context.fill();
+
+//             console.debug("Mouse: " + [x, y] + " => " + context.isPointInPath(x, y));
+//             console.debug("Rect: " + [currentRect.hpos,currentRect.vpos]);
+
+//         }
+
+//     };
+// }
