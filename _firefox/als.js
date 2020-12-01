@@ -1,4 +1,16 @@
 /*
+    START SETTINGS
+*/
+
+var SHOW_BOUNDING_BOXES = true;
+var CONTROLS_DIV_BACKGROUND_COLOR = 'yellow';
+
+/*
+    END SETTINGS
+*/
+
+
+/*
     START MAIN
 */
 
@@ -76,10 +88,8 @@ function newElement(url, article_id)
     boxCanvas.width = newImage.width;
     boxCanvas.height = newImage.height;
     boxCanvas.style.background = "url('" + url + "')";
+
     newDiv.appendChild(boxCanvas);
-    
-    console.debug("Canvas created and image loaded");
-    
 
     console.debug("Created new DOM");
     
@@ -96,33 +106,33 @@ function newElement(url, article_id)
         console.debug("Removed old flash player DOM");
     }
 
-    // TODO: Remove the "missing Flash Player" banner without breaking everything
-
-    // var contenutoDivAttuale = document.getElementById('main_content').innerHTML;
-    // if (contenutoDivAttuale.includes('Supporto Flash non rilevato.'))
-    // {
-    //         document.getElementById('main_content').innerHTML = contenutoDivAttuale.replace('Supporto Flash non rilevato. Questa applicazione richiede il plugin Adobe Flash Player. <a href="http://www.adobe.com/go/getflash/">Get Flash</a>','');;
-    // }
+    var contenutoDivAttuale = document.getElementById('main_content').innerHTML;
+    if (contenutoDivAttuale.includes('Supporto Flash non rilevato.'))
+    {
+            document.getElementById('main_content').innerHTML = contenutoDivAttuale.replace('</script>Supporto Flash non rilevato. Questa applicazione richiede il plugin Adobe Flash Player. <a href="http://www.adobe.com/go/getflash/">Get Flash</a>','</script>');;
+    }
     
+    console.debug("Removed 'Missing Flash Player' warning");
     
-    // Preparing "controls" div
-    
+    // Preparing "controls" div    
     // Prepare the URL for previous and next page to "draw" the controls
     
     previousPageID = previousPageURL(article_id);
     nextPageID = nextPageURL(article_id);
+    firstPageID = firstPageURL(article_id);
     
     // Create a new div to host the controls (previous page, next page, download pdf, download ocr) and add them to the page just on top of the newspaper's page
     
     var controlsDiv = document.createElement('div');
     controlsDiv.id = 'controls';
     controlsDiv.style.textAlign = 'center';
+    controlsDiv.style.marginBottom = '10px';
     // TODO: Add "go to first page".
     // TODO: Add "go to last page".
     // TODO: Add "go to custom page".
-    controlsDiv.innerHTML = "<a id = 'backButton' href = 'javascript:void(0);' data-newarticleid = '" + previousPageID + "' data-sfield = '" + s_field + "'>PREVIOUS PAGE</a> - <a id = 'forwardButton' href = 'javascript:void(0);' data-newarticleid = '" + nextPageID + "' data-sfield = '" + s_field + "'>NEXT PAGE</a> - <a id = 'downloadPdfButton' href = 'javascript:void(0);' data-sfield = '" + s_field + "'>PDF</a> - <a id = 'downloadOcrButton' href = 'javascript:void(0);' data-sfield = '" + s_field + "'>OCR</a><br/><br/><br/><br/><br/>";
+    controlsDiv.innerHTML = "<a id = 'firstButton' href = 'javascript:void(0);' data-newarticleid = '" + firstPageID + "' data-sfield = '" + s_field + "'>FIRST PAGE</a> - <a id = 'backButton' href = 'javascript:void(0);' data-newarticleid = '" + previousPageID + "' data-sfield = '" + s_field + "'>PREVIOUS PAGE</a> - <a id = 'forwardButton' href = 'javascript:void(0);' data-newarticleid = '" + nextPageID + "' data-sfield = '" + s_field + "'>NEXT PAGE</a> - <a id = 'downloadPdfButton' href = 'javascript:void(0);' data-sfield = '" + s_field + "'>PDF</a> - <a id = 'downloadOcrButton' href = 'javascript:void(0);' data-sfield = '" + s_field + "'>OCR</a>";
     // HACK: Don't worry, this is temporary. Just to see if the extension is working and where the controls are.
-    controlsDiv.style.background = 'yellow';
+    controlsDiv.style.background = CONTROLS_DIV_BACKGROUND_COLOR;
     
     var mainContainer = document.getElementById('maincontainer');
     var currentDOM = document.getElementById('main_content_wrapper'); 
@@ -132,8 +142,15 @@ function newElement(url, article_id)
     
     document.getElementById('footer').remove();
     document.getElementById('i_like_lastampa').remove();
-    
-    findBindingBoxes(article_id, s_field);
+
+    if (SHOW_BOUNDING_BOXES)
+    {
+        findBindingBoxes(article_id, s_field);
+    }
+    else
+    {
+        console.debug("Binding boxes are disabled (SHOW_BOUNDING_BOXES is set to false)");
+    }
         
 }
     
@@ -146,11 +163,14 @@ function updateControls()
     
     previousPageID = previousPageURL(currentArticleID);
     nextPageID = nextPageURL(currentArticleID);
+    firstPageID = firstPageURL(currentArticleID);
     
     var backButton = document.getElementById('backButton');
     var forwardButton = document.getElementById('forwardButton');
+    var firstButton = document.getElementById('firstButton');
     backButton.dataset.newarticleid = previousPageID;
     forwardButton.dataset.newarticleid = nextPageID;
+    firstButton.dataset.newarticleid = firstPageID;
 
     console.debug("Updated controls");
 }
@@ -233,6 +253,26 @@ function previousPageURL(article_id)
     }
 
     fields[4] = ("0000" + (parseInt(fields[4]) - 1)).slice(-4);
+    newArticleID = fields.join('_');
+
+    return newArticleID;
+
+}
+
+function firstPageURL(article_id)
+{
+    
+    // Generates the next page url by just subtracting 1 to the "page" field.
+    // "Page" field it's always the 5th element of the array splitting by underscore the "article_id"
+
+    fields = article_id.split("_");
+
+    if (parseInt(fields[4]) == 1)
+    {
+        return "FIRST_PAGE";
+    }
+
+    fields[4] = '0001';
     newArticleID = fields.join('_');
 
     return newArticleID;
@@ -412,7 +452,8 @@ function detectHoverOnRectangle(rectangles)
     var canvas = document.getElementById('boxCanvas');
     context = canvas.getContext("2d");
 
-    canvas.onmousemove = function(e) 
+    //canvas.onmousemove = function(e) 
+    canvas.onclick = function(e) 
     {
         for (var i = 0; i < rectangles.length; i++)
         {
