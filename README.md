@@ -38,11 +38,21 @@ If page does not load correctly please refresh and wait. Sometimes the newspaper
 
 ## How to load:
 
+###### Mozilla Firefox:
+
 1. Clone this repository.
 2. Go to: "about:debugging#/runtime/this-firefox".
 3. Click on "This Firefox" (on the left bar).
 4. Click on "Load Temporary Add-on" (top right side).
 5. Navigate to the cloned repository on your computer and double click 'als.js'.
+
+###### Google Chrome:
+
+1. Clone this repository.
+2. Go to: "chrome://extensions/".
+3. Enable "Developer mode" slider on the top right.
+4. Click "Load unpacked extension".
+5.  Navigate to the cloned repository on your computer and select the "_chrome" folder.
 
 After this the extension is ready (until you close Firefox) and you can use the site without having Flash Player, you just need to visit an article page (ex: http://www.archiviolastampa.it/component/option,com_lastampa/task,search/mod,libera/action,viewer/Itemid,3/page,10/articleid,1040_01_1982_0130_0001_14971132/).
 
