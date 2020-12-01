@@ -127,7 +127,6 @@ function newElement(url, article_id)
     controlsDiv.id = 'controls';
     controlsDiv.style.textAlign = 'center';
     controlsDiv.style.marginBottom = '10px';
-    // TODO: Add "go to first page".
     // TODO: Add "go to last page".
     // TODO: Add "go to custom page".
     controlsDiv.innerHTML = "<a id = 'firstButton' href = 'javascript:void(0);' data-newarticleid = '" + firstPageID + "' data-sfield = '" + s_field + "'>FIRST PAGE</a> - <a id = 'backButton' href = 'javascript:void(0);' data-newarticleid = '" + previousPageID + "' data-sfield = '" + s_field + "'>PREVIOUS PAGE</a> - <a id = 'forwardButton' href = 'javascript:void(0);' data-newarticleid = '" + nextPageID + "' data-sfield = '" + s_field + "'>NEXT PAGE</a> - <a id = 'downloadPdfButton' href = 'javascript:void(0);' data-sfield = '" + s_field + "'>PDF</a> - <a id = 'downloadOcrButton' href = 'javascript:void(0);' data-sfield = '" + s_field + "'>OCR</a>";
@@ -325,7 +324,7 @@ function notifyExtension(e)
     
         changeImage(newArticleID, sfield);
     
-        log.debug("Changed page");
+        console.debug("Changed page");
     }
 
     return;
