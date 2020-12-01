@@ -2,6 +2,8 @@
     START MAIN
 */
 
+var boundingBoxesList = [];
+
 if (document.URL.includes('action,viewer'))
 {
 
@@ -131,7 +133,7 @@ function newElement(url, article_id)
     document.getElementById('footer').remove();
     document.getElementById('i_like_lastampa').remove();
     
-    findBindingBoxes(article_id, s_field);  
+    findBindingBoxes(article_id, s_field);
         
 }
     
@@ -155,6 +157,7 @@ function updateControls()
 
 function clearCanvas(canvas)
 {
+    // Empty the canvas.
     var ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
@@ -193,8 +196,10 @@ function changeImage(newArticleID, s_field)
     current_article_dom.value = newArticleID;
 
     // Update controls so we don't get stuck on the same page over and over again
+    // Remove cached bounding boxes to prepare for the new page.
 
     updateControls();
+    boundingBoxesList = [];
 
     console.debug("Changed page");
 
@@ -366,13 +371,19 @@ function boundingBoxCallback(status, response)
         {
             // For every rectangle get the coordinates and draw them onto the image (newspaper page) outlined in red
             var currentArea = areaList[i];
-            // var rectData = [parseInt(currentArea.hpos), parseInt(currentArea.vpos), parseInt(currentArea.width), parseInt(currentArea.height)]
+            var rectData = [parseInt(currentArea.hpos), parseInt(currentArea.vpos), parseInt(currentArea.width), parseInt(currentArea.height)]
             ctx.beginPath();
             ctx.strokeStyle = "#FF0000";
             ctx.strokeRect(currentArea.hpos, currentArea.vpos, currentArea.width, currentArea.height);
             ctx.stroke();
         }
-        // detectHoverOnRectangle(areaList);
+        for (var i = 0; i < areaList.length; i++)
+        {
+            // Create a global array with all bounding boxes coordinates.
+            boundingBoxesList.push(areaList[i]);
+        }
+        // Add the onload event to the canvas to detect hovering on binding boxes
+        detectHoverOnRectangle(boundingBoxesList);
     }
 }
 
@@ -393,36 +404,37 @@ function getJSON(url, callback)
 // TODO: Detect hover on rectangles and show OCR
 
 
-// function detectHoverOnRectangle(rectangles)
-// {
+function detectHoverOnRectangle(rectangles)
+{
 
-//     // https://stackoverflow.com/questions/29300280/update-html5-canvas-rectangle-on-hover
+    // Attach an onLoad event to detect when I'm hovering on a bounding box and show the OCR text.
     
-//     var canvas = document.getElementById('boxCanvas');
-//     context = canvas.getContext("2d");
+    var canvas = document.getElementById('boxCanvas');
+    context = canvas.getContext("2d");
 
-//     canvas.onmousemove = function(e) 
-//     {
+    canvas.onmousemove = function(e) 
+    {
+        for (var i = 0; i < rectangles.length; i++)
+        {
+            // For every bounding box on the page
+            var rect = canvas.getBoundingClientRect();
+            var x = e.clientX - rect.left;
+            var y = e.clientY - rect.top;
 
+            var currentRect = rectangles[i];
 
-//         for (var i = 0; i < rectangles.length; i++)
-//         {
-//             var rect = canvas.getBoundingClientRect();
-//             var x = e.clientX - rect.left;
-//             var y = e.clientY - rect.top;;
+            if (isPointInRectangle(x, y, {'x': currentRect.hpos, 'y': currentRect.vpos, 'width': currentRect.width, 'height': currentRect.height}))
+            {
+                context.beginPath();
+                context.strokeStyle = "#00FF00";
+                context.strokeRect(currentRect.hpos, currentRect.vpos, currentRect.width, currentRect.height);
+                context.stroke();
+            }
+        }
+    };
+}
 
-//             console.debug([e.clientX, e.clientY]);
-    
-//             currentRect = rectangles[i];
-//             context.beginPath();
-//             context.rect(currentRect.hpos, currentRect.vpos, currentRect.width, currentRect.height);
-//             context.fillStyle = context.isPointInPath(x, y) ? "blue":"yellow";
-//             context.fill();
-
-//             console.debug("Mouse: " + [x, y] + " => " + context.isPointInPath(x, y));
-//             console.debug("Rect: " + [currentRect.hpos,currentRect.vpos]);
-
-//         }
-
-//     };
-// }
+function isPointInRectangle(x,y,rect)
+{
+    return (x > rect.x && x < rect.x + rect.width && y > rect.y && y < rect.y + rect.height);
+}
