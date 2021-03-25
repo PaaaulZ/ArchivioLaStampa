@@ -1,5 +1,7 @@
 # Alternative player for "Archivio La Stampa" (www.archiviolastampa.it)
 
+## NOTICE: Website was updated and Flash Player removed. This extension is not needed anymore and maybe not even working right now.
+
 ## What:
 
 Browser extension that offers an alternative player for www.archiviolastampa.it.
